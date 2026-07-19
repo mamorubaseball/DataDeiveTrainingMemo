@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Modal, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, TextInput, Modal, Alert, Linking, Platform } from 'react-native';
 import { User, Shield, Activity, Dumbbell, Award, ToggleLeft, ToggleRight, RefreshCw, Edit2, Mail, Link2 } from 'lucide-react-native';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import GlassCard from '@/components/ui/GlassCard';
 import Svg, { Polygon, Line, Circle, Text as SvgText, G } from 'react-native-svg';
+import { isPurchasesInitialized, getAvailablePackages, purchasePremiumPackage } from '@/services/purchaseService';
 
 export default function ProfileScreen() {
-  const { profile, updateProfile, logout, plan, togglePlan } = useWorkoutStore();
+  const { profile, updateProfile, logout, plan, togglePlan, setPlan } = useWorkoutStore();
 
   // Edit Modal States
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -270,31 +271,84 @@ export default function ProfileScreen() {
             </View>
             <TouchableOpacity
               style={[styles.planActionBtn, plan === 'premium' ? styles.planCancelBtn : styles.planUpgradeBtn]}
-              onPress={() => {
+              onPress={async () => {
                 if (plan === 'premium') {
-                  Alert.alert(
-                    'プラン解約',
-                    'プレミアムプランを解約しますか？解約すると、AIチャット回数が1日5回に制限され、広告が表示されるようになります。',
-                    [
-                      { text: 'キャンセル', style: 'cancel' },
-                      { text: '解約する', style: 'destructive', onPress: () => togglePlan() }
-                    ]
-                  );
-                } else {
-                  Alert.alert(
-                    'プレミアムアップグレード',
-                    '月額500円（税込）でプレミアムプランに加入しますか？加入すると1日100回までのAIチャットと広告削除が適用されます。',
-                    [
-                      { text: 'キャンセル', style: 'cancel' },
-                      {
-                        text: '月額500円で加入',
-                        onPress: () => {
-                          togglePlan();
-                          Alert.alert('アップグレード完了', 'プレミアムプランへの移行が完了しました！');
+                  if (isPurchasesInitialized()) {
+                    Alert.alert(
+                      'サブスクリプションの解約',
+                      `プレミアムプランの解約は、OS（App Store または Google Play ストア）のサブスクリプション管理画面から直接行う必要があります。
+
+解約画面を開きますか？`,
+                      [
+                        { text: 'キャンセル', style: 'cancel' },
+                        {
+                          text: '設定を開く',
+                          onPress: () => {
+                            const url = Platform.OS === 'ios'
+                              ? 'https://apps.apple.com/account/subscriptions'
+                              : 'https://play.google.com/store/account/subscriptions';
+                            Linking.openURL(url).catch(err => {
+                              console.error('Failed to open subscription URL:', err);
+                              Alert.alert('エラー', '設定画面を開くことができませんでした。');
+                            });
+                          }
                         }
-                      }
-                    ]
-                  );
+                      ]
+                    );
+                  } else {
+                    Alert.alert(
+                      'プラン解約 (デモ環境)',
+                      'プレミアムプランを解約しますか？解約すると、AIチャット回数が1日5回に制限され、広告が表示されるようになります。',
+                      [
+                        { text: 'キャンセル', style: 'cancel' },
+                        { text: '解約する', style: 'destructive', onPress: () => togglePlan() }
+                      ]
+                    );
+                  }
+                } else {
+                  if (isPurchasesInitialized()) {
+                    Alert.alert(
+                      'プレミアムアップグレード',
+                      '月額500円（税込）でプレミアムプランに加入しますか？加入すると1日100回までのAIチャットと広告削除が適用されます。',
+                      [
+                        { text: 'キャンセル', style: 'cancel' },
+                        {
+                          text: '購入手続きへ',
+                          onPress: async () => {
+                            try {
+                              const pkgs = await getAvailablePackages();
+                              if (pkgs.length === 0) {
+                                Alert.alert('エラー', '購入可能なプランが見つかりませんでした。');
+                                return;
+                              }
+                              const success = await purchasePremiumPackage(pkgs[0]);
+                              if (success) {
+                                setPlan('premium');
+                                Alert.alert('アップグレード完了', 'プレミアムプランへの移行が完了しました！');
+                              }
+                            } catch (err: any) {
+                              Alert.alert('エラー', err.message || '決済処理中にエラーが発生しました。');
+                            }
+                          }
+                        }
+                      ]
+                    );
+                  } else {
+                    Alert.alert(
+                      'プレミアムアップグレード (デモ環境)',
+                      '月額500円（税込）でプレミアムプランに加入しますか？加入すると1日100回までのAIチャットと広告削除が適用されます。',
+                      [
+                        { text: 'キャンセル', style: 'cancel' },
+                        {
+                          text: '月額500円で加入',
+                          onPress: () => {
+                            togglePlan();
+                            Alert.alert('アップグレード完了', 'プレミアムプランへの移行が完了しました！');
+                          }
+                        }
+                      ]
+                    );
+                  }
                 }
               }}
             >

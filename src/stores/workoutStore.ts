@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
+import { loginUserToPurchases, logoutUserFromPurchases, checkPremiumStatus } from '@/services/purchaseService';
 
 
 export interface SetRecord {
@@ -351,11 +352,13 @@ export const useWorkoutStore = create<WorkoutState>()(
 
   logout: () => {
     auth().signOut().catch(err => console.error('Sign out error:', err));
+    logoutUserFromPurchases();
     set((state) => ({
       profile: {
         ...state.profile,
         email: '', // Clear email to trigger auth screen
-      }
+      },
+      plan: 'free',
     }));
   },
 
@@ -396,20 +399,30 @@ export const useWorkoutStore = create<WorkoutState>()(
         profile: { ...state.profile, email },
       }));
 
+      // Sync user to RevenueCat and check subscription status
+      await loginUserToPurchases(email);
+      const isPremium = await checkPremiumStatus();
+
       // 2. Fetch or initialize the user's profile in Firestore
       const userDoc = await firestore().collection('users').doc(email).get();
+      let dbPlan: 'free' | 'premium' = 'free';
+      
       if ((userDoc as any).exists) {
         const userData = userDoc.data();
         if (userData) {
+          dbPlan = userData.plan || 'free';
           set((state) => ({
             profile: { ...state.profile, ...userData, email },
-            plan: userData.plan || 'free',
           }));
         }
       } else {
         // If the profile document doesn't exist yet, save the current local profile state
         await get().saveProfileToFirestore();
       }
+      
+      // Use RevenueCat premium status if available, fallback to database plan status
+      const finalPlan = isPremium ? 'premium' : dbPlan;
+      set({ plan: finalPlan });
       
       // 3. Sync workout logs
       const logsSnapshot = await firestore().collection('workout_logs').doc(email).collection('logs').get();

@@ -9,6 +9,10 @@ const REVENUECAT_API_KEYS = {
 
 let isInitialized = false;
 
+export const isPurchasesInitialized = (): boolean => {
+  return isInitialized;
+};
+
 export const initializePurchases = async () => {
   if (isInitialized) return;
   try {
@@ -21,6 +25,37 @@ export const initializePurchases = async () => {
     }
   } catch (error) {
     console.warn('RevenueCat initialization skipped or failed:', error);
+  }
+};
+
+export const loginUserToPurchases = async (email: string): Promise<void> => {
+  if (!isInitialized) return;
+  try {
+    await Purchases.logIn(email);
+    console.log('Successfully logged in user to RevenueCat:', email);
+  } catch (error) {
+    console.error('Error logging in user to RevenueCat:', error);
+  }
+};
+
+export const logoutUserFromPurchases = async (): Promise<void> => {
+  if (!isInitialized) return;
+  try {
+    await Purchases.logOut();
+    console.log('Successfully logged out user from RevenueCat');
+  } catch (error) {
+    console.error('Error logging out user from RevenueCat:', error);
+  }
+};
+
+export const checkPremiumStatus = async (): Promise<boolean> => {
+  if (!isInitialized) return false;
+  try {
+    const customerInfo = await Purchases.getCustomerInfo();
+    return customerInfo.entitlements.active['premium'] !== undefined;
+  } catch (error) {
+    console.error('Error fetching customer info from RevenueCat:', error);
+    return false;
   }
 };
 
@@ -103,3 +138,4 @@ export const restorePurchases = async (): Promise<boolean> => {
   }
   return false;
 };
+

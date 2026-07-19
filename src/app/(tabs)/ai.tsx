@@ -8,7 +8,7 @@ import { useProductStore } from '@/stores/productStore';
 
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { GEMINI_API_KEY } from '@/config/aiConfig';
-import { initializePurchases, getAvailablePackages, purchasePremiumPackage } from '@/services/purchaseService';
+import { initializePurchases, getAvailablePackages, purchasePremiumPackage, isPurchasesInitialized } from '@/services/purchaseService';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -41,6 +41,13 @@ export default function AIChatScreen() {
     };
   }, []);
 
+  // Paywall checkout states
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [isPaying, setIsPaying] = useState(false);
+
   useEffect(() => {
     if (paywallVisible) {
       getAvailablePackages().then(pkgs => setAvailablePackages(pkgs));
@@ -56,13 +63,6 @@ export default function AIChatScreen() {
   ]);
   const [inputText, setInputText] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
-
-  // Paywall checkout states
-  const [paywallVisible, setPaywallVisible] = useState(false);
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [isPaying, setIsPaying] = useState(false);
 
   const getTodayString = () => {
     const d = new Date();
@@ -396,6 +396,12 @@ ${logsSummary}
         )}
 
         {/* Chat Area */}
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.chatScroll}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        >
           {messages.map((msg) => {
             const isAI = msg.sender === 'ai';
             return (
@@ -498,47 +504,60 @@ ${logsSummary}
               </View>
             ) : (
               <View style={{ width: '100%' }}>
-                <Text style={styles.paymentSectionHeader}>クレジットカードで支払う</Text>
-                
-                <TextInput
-                  style={styles.paymentInput}
-                  placeholder="カード番号 (16桁)"
-                  placeholderTextColor="#555"
-                  keyboardType="numeric"
-                  maxLength={16}
-                  value={cardNumber}
-                  onChangeText={setCardNumber}
-                />
-                
-                <View style={{ flexDirection: 'row', gap: 10, marginVertical: 8 }}>
-                  <TextInput
-                    style={[styles.paymentInput, { flex: 1 }]}
-                    placeholder="有効期限 (MM/YY)"
-                    placeholderTextColor="#555"
-                    maxLength={5}
-                    value={cardExpiry}
-                    onChangeText={setCardExpiry}
-                  />
-                  <TextInput
-                    style={[styles.paymentInput, { flex: 1 }]}
-                    placeholder="CVV (3桁)"
-                    placeholderTextColor="#555"
-                    keyboardType="numeric"
-                    maxLength={3}
-                    value={cardCvv}
-                    onChangeText={setCardCvv}
-                  />
-                </View>
+                {isPurchasesInitialized() ? (
+                  <View style={{ gap: 12, marginVertical: 15 }}>
+                    <Text style={styles.benefitText}>
+                      App Store または Google Play アカウントに登録されている決済方法で安全に登録手続きを行います。
+                    </Text>
+                    <TouchableOpacity style={styles.payConfirmBtn} onPress={handlePurchasePremium}>
+                      <Text style={styles.payConfirmText}>購入手続きに進む</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.paymentSectionHeader}>クレジットカードで支払う (デモ環境)</Text>
+                    
+                    <TextInput
+                      style={styles.paymentInput}
+                      placeholder="カード番号 (16桁)"
+                      placeholderTextColor="#555"
+                      keyboardType="numeric"
+                      maxLength={16}
+                      value={cardNumber}
+                      onChangeText={setCardNumber}
+                    />
+                    
+                    <View style={{ flexDirection: 'row', gap: 10, marginVertical: 8 }}>
+                      <TextInput
+                        style={[styles.paymentInput, { flex: 1 }]}
+                        placeholder="有効期限 (MM/YY)"
+                        placeholderTextColor="#555"
+                        maxLength={5}
+                        value={cardExpiry}
+                        onChangeText={setCardExpiry}
+                      />
+                      <TextInput
+                        style={[styles.paymentInput, { flex: 1 }]}
+                        placeholder="CVV (3桁)"
+                        placeholderTextColor="#555"
+                        keyboardType="numeric"
+                        maxLength={3}
+                        value={cardCvv}
+                        onChangeText={setCardCvv}
+                      />
+                    </View>
 
-                <TouchableOpacity style={styles.payConfirmBtn} onPress={handlePurchasePremium}>
-                  <Text style={styles.payConfirmText}>月額500円で登録する</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity style={styles.payConfirmBtn} onPress={handlePurchasePremium}>
+                      <Text style={styles.payConfirmText}>月額500円で登録する</Text>
+                    </TouchableOpacity>
 
-                <Text style={styles.orText}>または</Text>
+                    <Text style={styles.orText}>または</Text>
 
-                <TouchableOpacity style={styles.applePayBtn} onPress={handlePurchasePremium}>
-                  <Text style={styles.applePayText}> Pay で支払う</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity style={styles.applePayBtn} onPress={handlePurchasePremium}>
+                      <Text style={styles.applePayText}> Pay で支払う</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
 
                 <TouchableOpacity style={styles.payCancelBtn} onPress={() => setPaywallVisible(false)}>
                   <Text style={styles.payCancelText}>キャンセル</Text>
