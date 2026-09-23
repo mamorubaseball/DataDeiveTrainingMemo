@@ -7,7 +7,7 @@ import Svg, { Polygon, Line, Circle, Text as SvgText, G } from 'react-native-svg
 import { isPurchasesInitialized, getAvailablePackages, purchasePremiumPackage, presentPaywall, presentCustomerCenter, checkPremiumStatus } from '@/services/purchaseService';
 
 export default function ProfileScreen() {
-  const { profile, updateProfile, logout, plan, togglePlan, setPlan } = useWorkoutStore();
+  const { profile, updateProfile, logout } = useWorkoutStore();
 
   // Edit Modal States
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -256,70 +256,6 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             </View>
-          </View>
-
-          {/* プレミアムプラン管理項目 */}
-          <View style={[styles.linkRow, { marginTop: 15, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', paddingTop: 15 }]}>
-            <View style={styles.linkInfo}>
-              <Award size={18} color="#ff6b00" />
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={styles.linkLabel}>プラン設定</Text>
-                <Text style={styles.linkStatus}>
-                  {plan === 'premium' ? '👑 プレミアムプラン (月額500円)' : '⚡ 無料プラン'}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={[styles.planActionBtn, plan === 'premium' ? styles.planCancelBtn : styles.planUpgradeBtn]}
-              onPress={async () => {
-                if (plan === 'premium') {
-                  if (isPurchasesInitialized()) {
-                    // RevenueCat Customer Center を起動
-                    await presentCustomerCenter();
-                    // ステータスを再確認してローカルプラン状態に反映
-                    const isPremium = await checkPremiumStatus();
-                    setPlan(isPremium ? 'premium' : 'free');
-                  } else {
-                    Alert.alert(
-                      'プラン解約 (デモ環境)',
-                      'プレミアムプランを解約しますか？解約すると、AIチャット回数が1日5回に制限され、広告が表示されるようになります。',
-                      [
-                        { text: 'キャンセル', style: 'cancel' },
-                        { text: '解約する', style: 'destructive', onPress: () => togglePlan() }
-                      ]
-                    );
-                  }
-                } else {
-                  if (isPurchasesInitialized()) {
-                    // RevenueCat Paywall を起動
-                    const success = await presentPaywall();
-                    if (success) {
-                      setPlan('premium');
-                      Alert.alert('アップグレード完了', 'プレミアムプランへの移行が完了しました！');
-                    }
-                  } else {
-                    Alert.alert(
-                      'プレミアムアップグレード (デモ環境)',
-                      '月額500円（税込）でプレミアムプランに加入しますか？加入すると1日100回までのAIチャットと広告削除が適用されます。',
-                      [
-                        { text: 'キャンセル', style: 'cancel' },
-                        {
-                          text: '月額500円で加入',
-                          onPress: () => {
-                            togglePlan();
-                            Alert.alert('アップグレード完了', 'プレミアムプランへの移行が完了しました！');
-                          }
-                        }
-                      ]
-                    );
-                  }
-                }
-              }}
-            >
-              <Text style={plan === 'premium' ? styles.planCancelBtnText : styles.planUpgradeBtnText}>
-                {plan === 'premium' ? '解約' : '変更'}
-              </Text>
-            </TouchableOpacity>
           </View>
 
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogoutPress}>

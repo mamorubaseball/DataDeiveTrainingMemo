@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { Sparkles } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 
 interface AIChatTabButtonProps {
   onPress: (e?: any) => void;
@@ -35,7 +35,7 @@ export const AIChatTabButton: React.FC<AIChatTabButtonProps> = ({ onPress, acces
       style={styles.container}
     >
       <Animated.View style={[styles.button, animatedStyle, selected && styles.activeButton]}>
-        <Sparkles size={26} color={selected ? '#121212' : '#ff6b00'} fill={selected ? '#121212' : 'transparent'} />
+        <Plus size={30} color={selected ? '#121212' : '#ff6b00'} strokeWidth={2.4} />
       </Animated.View>
     </TouchableOpacity>
   );

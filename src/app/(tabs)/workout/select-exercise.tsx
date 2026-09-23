@@ -30,11 +30,26 @@ export default function SelectExerciseScreen() {
     <SafeAreaView style={styles.container}>
       {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/workout/record');
+            }
+          }}
+        >
           <ArrowLeft size={24} color="#ffffff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{category} の種目</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          style={styles.changeCategoryButton}
+          onPress={() => router.push('/workout/record')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.changeCategoryText}>部位変更</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
@@ -148,6 +163,19 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  changeCategoryButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 107, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 0, 0.3)',
+  },
+  changeCategoryText: {
+    color: '#ff7c26',
+    fontSize: 12,
+    fontWeight: '700',
   },
   searchContainer: {
     flexDirection: 'row',

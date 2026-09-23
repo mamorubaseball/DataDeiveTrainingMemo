@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, ScrollView, SafeAreaView, TouchableOpacity, Dimensions, Image, Alert } from 'react-native';
-import { ShoppingBag, ArrowRight, Star, Sparkles } from 'lucide-react-native';
+import { ShoppingBag, ArrowRight, Star } from 'lucide-react-native';
 import * as Linking from 'expo-linking';
 import GlassCard from '@/components/ui/GlassCard';
 import { useProductStore } from '@/stores/productStore';
@@ -30,11 +30,11 @@ export default function ShopScreen() {
         {/* Header */}
         <View style={styles.header}>
           <ShoppingBag size={24} color="#ff6b00" />
-          <Text style={styles.headerTitle}>AI-RECOMMENDED SHOP</Text>
+          <Text style={styles.headerTitle}>SHOP</Text>
         </View>
 
         <Text style={styles.heroText}>
-          あなたのトレーニング履歴とコンディションに基づき、AIが最適なサプリメントとギアをセレクトしました。
+          トレーニングやリカバリーをサポートするおすすめのサプリメント・ギアをご紹介します。
         </Text>
 
         {/* Product Cards List */}
@@ -46,7 +46,6 @@ export default function ShopScreen() {
                 <Image source={product.image} style={styles.productImage} resizeMode="contain" />
                 {product.tag && (
                   <View style={styles.tagBadge}>
-                    <Sparkles size={10} color="#ffffff" style={{ marginRight: 3 }} />
                     <Text style={styles.tagText}>{product.tag}</Text>
                   </View>
                 )}

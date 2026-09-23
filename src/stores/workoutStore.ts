@@ -28,6 +28,8 @@ export interface WorkoutState {
   previousRecords: { [exerciseName: string]: SetRecord[] };
   
   workoutNotes: { [dateStr: string]: string };
+  workoutNoteTags: { [dateStr: string]: string[] };
+  workoutNotePhotos: { [dateStr: string]: string | null };
 
   plan: 'free' | 'premium';
   chatUsage: { [dateStr: string]: number };
@@ -58,6 +60,8 @@ export interface WorkoutState {
   addExercise: (category: string, exerciseName: string) => void;
   getPersonalRecord: (exerciseName: string, beforeDate?: string) => { weight: number, reps: number } | null;
   updateWorkoutNote: (dateStr: string, note: string) => void;
+  updateWorkoutNoteTags: (dateStr: string, tags: string[]) => void;
+  updateWorkoutNotePhoto: (dateStr: string, photoUri: string | null) => void;
   updateProfile: (profile: Partial<WorkoutState['profile']>) => void;
   logout: () => void;
   togglePlan: () => void;
@@ -75,6 +79,8 @@ const getTodayString = () => {
   const date = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${date}`;
 };
+
+const firestoreSaveTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
 export const useWorkoutStore = create<WorkoutState>()(
   persist(
@@ -144,6 +150,8 @@ export const useWorkoutStore = create<WorkoutState>()(
   workoutNotes: {
     '2026-07-04': 'ベンチプレスのメインセットで最終レップまで力強く押し切れた。肩や手首の違和感もなし。インクラインダンベルは少し重量が重く感じたので次回調整要。',
   },
+  workoutNoteTags: {},
+  workoutNotePhotos: {},
 
   plan: 'free',
   chatUsage: {},
@@ -201,7 +209,11 @@ export const useWorkoutStore = create<WorkoutState>()(
         }
       };
     });
-    get().saveLogToFirestore(dateStr);
+    if (firestoreSaveTimers[dateStr]) clearTimeout(firestoreSaveTimers[dateStr]);
+    firestoreSaveTimers[dateStr] = setTimeout(() => {
+      get().saveLogToFirestore(dateStr);
+      delete firestoreSaveTimers[dateStr];
+    }, 450);
   },
 
   addSet: (dateStr, exerciseName) => {
@@ -340,6 +352,25 @@ export const useWorkoutStore = create<WorkoutState>()(
     get().saveLogToFirestore(dateStr);
   },
 
+  updateWorkoutNoteTags: (dateStr, tags) => {
+    set((state) => ({
+      workoutNoteTags: {
+        ...state.workoutNoteTags,
+        [dateStr]: tags,
+      },
+    }));
+    get().saveLogToFirestore(dateStr);
+  },
+
+  updateWorkoutNotePhoto: (dateStr, photoUri) => {
+    set((state) => ({
+      workoutNotePhotos: {
+        ...state.workoutNotePhotos,
+        [dateStr]: photoUri,
+      },
+    }));
+  },
+
   updateProfile: (updatedProfile) => {
     set((state) => ({
       profile: {
@@ -429,6 +460,7 @@ export const useWorkoutStore = create<WorkoutState>()(
       const logsSnapshot = await firestore().collection('workout_logs').doc(email).collection('logs').get();
       const logs: WorkoutState['workoutLogs'] = {};
       const notes: WorkoutState['workoutNotes'] = {};
+      const noteTags: WorkoutState['workoutNoteTags'] = {};
       
       logsSnapshot.forEach(doc => {
         const data = doc.data();
@@ -439,11 +471,15 @@ export const useWorkoutStore = create<WorkoutState>()(
         if (data.workoutNotes) {
           notes[dateStr] = data.workoutNotes;
         }
+        if (Array.isArray(data.workoutNoteTags)) {
+          noteTags[dateStr] = data.workoutNoteTags;
+        }
       });
       
       set({
         workoutLogs: { ...get().workoutLogs, ...logs },
         workoutNotes: { ...get().workoutNotes, ...notes },
+        workoutNoteTags: { ...get().workoutNoteTags, ...noteTags },
       });
     } catch (error) {
       console.error('Error syncing logs with Firestore:', error);
@@ -451,11 +487,12 @@ export const useWorkoutStore = create<WorkoutState>()(
   },
 
   saveLogToFirestore: async (dateStr) => {
-    const { profile, workoutLogs, workoutNotes } = get();
+    const { profile, workoutLogs, workoutNotes, workoutNoteTags } = get();
     if (!profile.email) return;
     try {
       const dayLogs = workoutLogs[dateStr] || {};
       const dayNote = workoutNotes[dateStr] || '';
+      const dayNoteTags = workoutNoteTags[dateStr] || [];
       
       await firestore()
         .collection('workout_logs')
@@ -466,6 +503,7 @@ export const useWorkoutStore = create<WorkoutState>()(
           date: dateStr,
           workoutLogs: dayLogs,
           workoutNotes: dayNote,
+          workoutNoteTags: dayNoteTags,
           updatedAt: firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
     } catch (error) {
@@ -506,6 +544,8 @@ export const useWorkoutStore = create<WorkoutState>()(
         workoutLogs: state.workoutLogs,
         exercisesByCategory: state.exercisesByCategory,
         workoutNotes: state.workoutNotes,
+        workoutNoteTags: state.workoutNoteTags,
+        workoutNotePhotos: state.workoutNotePhotos,
         profile: state.profile,
         plan: state.plan,
         chatUsage: state.chatUsage,
