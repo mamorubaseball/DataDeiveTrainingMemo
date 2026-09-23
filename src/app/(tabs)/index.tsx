@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useRouter } from 'expo-router';
-import { CalendarDays, ChevronRight, Dumbbell, Plus, Sparkles } from 'lucide-react-native';
+import { CalendarDays, ChevronRight, Dumbbell, Plus } from 'lucide-react-native';
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { formatJapaneseDate, getTodayString, getWorkoutSummary } from '@/lib/workout';
 
@@ -92,9 +92,6 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.tagline}>記録が、習慣をつくる。</Text>
           </View>
-          <TouchableOpacity style={styles.aiButton} onPress={() => router.push('/ai')}>
-            <Sparkles size={18} color="#ff6b00" />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.calendarCard}>
