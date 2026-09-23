@@ -243,6 +243,17 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="actions"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
+        <Stack.Screen name="memo" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="share" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="complete" options={{ animation: 'slide_from_right' }} />
       </Stack>
     </View>
   );

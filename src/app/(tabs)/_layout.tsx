@@ -1,10 +1,11 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { StyleSheet, Platform } from 'react-native';
 import { Home, BarChart2, ShoppingBag, User } from 'lucide-react-native';
 import { AIChatTabButton } from '@/components/ui/AIChatTabButton';
 
 export default function TabLayout() {
+  const router = useRouter();
   return (
     <Tabs
       screenOptions={{
@@ -39,10 +40,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="ai"
         options={{
-          title: 'AIと話す',
+          title: '',
           tabBarButton: (props) => (
             <AIChatTabButton
-              onPress={props.onPress!}
+              onPress={() => router.push('/actions' as any)}
               accessibilityState={props.accessibilityState}
             />
           ),
