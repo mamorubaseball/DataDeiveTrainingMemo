@@ -4,7 +4,7 @@ import { User, Shield, Activity, Dumbbell, Award, ToggleLeft, ToggleRight, Refre
 import { useWorkoutStore } from '@/stores/workoutStore';
 import GlassCard from '@/components/ui/GlassCard';
 import Svg, { Polygon, Line, Circle, Text as SvgText, G } from 'react-native-svg';
-import { isPurchasesInitialized, getAvailablePackages, purchasePremiumPackage } from '@/services/purchaseService';
+import { isPurchasesInitialized, getAvailablePackages, purchasePremiumPackage, presentPaywall, presentCustomerCenter, checkPremiumStatus } from '@/services/purchaseService';
 
 export default function ProfileScreen() {
   const { profile, updateProfile, logout, plan, togglePlan, setPlan } = useWorkoutStore();
@@ -274,27 +274,11 @@ export default function ProfileScreen() {
               onPress={async () => {
                 if (plan === 'premium') {
                   if (isPurchasesInitialized()) {
-                    Alert.alert(
-                      'サブスクリプションの解約',
-                      `プレミアムプランの解約は、OS（App Store または Google Play ストア）のサブスクリプション管理画面から直接行う必要があります。
-
-解約画面を開きますか？`,
-                      [
-                        { text: 'キャンセル', style: 'cancel' },
-                        {
-                          text: '設定を開く',
-                          onPress: () => {
-                            const url = Platform.OS === 'ios'
-                              ? 'https://apps.apple.com/account/subscriptions'
-                              : 'https://play.google.com/store/account/subscriptions';
-                            Linking.openURL(url).catch(err => {
-                              console.error('Failed to open subscription URL:', err);
-                              Alert.alert('エラー', '設定画面を開くことができませんでした。');
-                            });
-                          }
-                        }
-                      ]
-                    );
+                    // RevenueCat Customer Center を起動
+                    await presentCustomerCenter();
+                    // ステータスを再確認してローカルプラン状態に反映
+                    const isPremium = await checkPremiumStatus();
+                    setPlan(isPremium ? 'premium' : 'free');
                   } else {
                     Alert.alert(
                       'プラン解約 (デモ環境)',
@@ -307,32 +291,12 @@ export default function ProfileScreen() {
                   }
                 } else {
                   if (isPurchasesInitialized()) {
-                    Alert.alert(
-                      'プレミアムアップグレード',
-                      '月額500円（税込）でプレミアムプランに加入しますか？加入すると1日100回までのAIチャットと広告削除が適用されます。',
-                      [
-                        { text: 'キャンセル', style: 'cancel' },
-                        {
-                          text: '購入手続きへ',
-                          onPress: async () => {
-                            try {
-                              const pkgs = await getAvailablePackages();
-                              if (pkgs.length === 0) {
-                                Alert.alert('エラー', '購入可能なプランが見つかりませんでした。');
-                                return;
-                              }
-                              const success = await purchasePremiumPackage(pkgs[0]);
-                              if (success) {
-                                setPlan('premium');
-                                Alert.alert('アップグレード完了', 'プレミアムプランへの移行が完了しました！');
-                              }
-                            } catch (err: any) {
-                              Alert.alert('エラー', err.message || '決済処理中にエラーが発生しました。');
-                            }
-                          }
-                        }
-                      ]
-                    );
+                    // RevenueCat Paywall を起動
+                    const success = await presentPaywall();
+                    if (success) {
+                      setPlan('premium');
+                      Alert.alert('アップグレード完了', 'プレミアムプランへの移行が完了しました！');
+                    }
                   } else {
                     Alert.alert(
                       'プレミアムアップグレード (デモ環境)',

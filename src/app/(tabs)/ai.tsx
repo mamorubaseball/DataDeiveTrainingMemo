@@ -8,7 +8,7 @@ import { useProductStore } from '@/stores/productStore';
 
 import { useWorkoutStore } from '@/stores/workoutStore';
 import { GEMINI_API_KEY } from '@/config/aiConfig';
-import { initializePurchases, getAvailablePackages, purchasePremiumPackage, isPurchasesInitialized } from '@/services/purchaseService';
+import { initializePurchases, getAvailablePackages, purchasePremiumPackage, isPurchasesInitialized, presentPaywall } from '@/services/purchaseService';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -41,18 +41,17 @@ export default function AIChatScreen() {
     };
   }, []);
 
-  // Paywall checkout states
-  const [paywallVisible, setPaywallVisible] = useState(false);
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [isPaying, setIsPaying] = useState(false);
-
-  useEffect(() => {
-    if (paywallVisible) {
-      getAvailablePackages().then(pkgs => setAvailablePackages(pkgs));
+  const handleOpenPaywall = async () => {
+    try {
+      const success = await presentPaywall();
+      if (success) {
+        setPlan('premium');
+        Alert.alert('アップグレード完了', 'プレミアムプランへの移行が完了しました！');
+      }
+    } catch (err: any) {
+      Alert.alert('エラー', err.message || 'ペイウォールの起動に失敗しました。');
     }
-  }, [paywallVisible]);
+  };
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -63,6 +62,7 @@ export default function AIChatScreen() {
   ]);
   const [inputText, setInputText] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInput>(null);
 
   const getTodayString = () => {
     const d = new Date();
@@ -79,30 +79,7 @@ export default function AIChatScreen() {
     'おすすめのプロテイン',
   ];
 
-  const handlePurchasePremium = async () => {
-    if (availablePackages.length === 0) {
-      Alert.alert('エラー', '購入可能なプランが見つかりませんでした。');
-      return;
-    }
-    setIsPaying(true);
-    try {
-      const success = await purchasePremiumPackage(availablePackages[0]);
-      if (success) {
-        setPlan('premium');
-        setPaywallVisible(false);
-        setCardNumber('');
-        setCardExpiry('');
-        setCardCvv('');
-        Alert.alert('決済成功', '月額500円（税込）のプレミアムプラン登録が完了しました！');
-      } else {
-        Alert.alert('決済キャンセル', '決済手続きが完了しませんでした。');
-      }
-    } catch (error: any) {
-      Alert.alert('エラー', error.message || '決済処理中にエラーが発生しました。');
-    } finally {
-      setIsPaying(false);
-    }
-  };
+
 
   // Helper to serialize recent logs and construct system prompt
   const getSystemPrompt = () => {
@@ -151,7 +128,7 @@ ${logsSummary}
 
 回答に関する注意点:
 1. ユーザーの自己ベストや最近のトレーニング状況を尋ねられたら、上記の実際のデータを引用して正確に答えてください。
-2. 簡潔かつ明確に回答してください（長文になりすぎないようマークダウンの箇条書きや改行を有効に活用してください）。
+2. 筋トレ中にも片手でサクッと読めるよう、極めて簡潔（目安として3文以内、150文字程度）に要点のみを回答してください。長文での長々とした解説は絶対に避けてください。
 3. ユーザーの体調や怪我に配慮し、安全かつ段階的なトレーニング（漸進性過負荷の原則）を推奨してください。`;
   };
 
@@ -168,7 +145,7 @@ ${logsSummary}
           { text: 'キャンセル', style: 'cancel' },
           {
             text: 'プランを見る',
-            onPress: () => setPaywallVisible(true)
+            onPress: handleOpenPaywall
           }
         ]
       );
@@ -183,6 +160,7 @@ ${logsSummary}
     ];
     setMessages(newMessages);
     setInputText('');
+    inputRef.current?.clear();
     setIsLoading(true);
     
     // Auto scroll to bottom
@@ -384,7 +362,7 @@ ${logsSummary}
                     ]
                   );
                 } else {
-                  setPaywallVisible(true);
+                  handleOpenPaywall();
                 }
               }}
             >
@@ -449,6 +427,7 @@ ${logsSummary}
         {/* Input Bar */}
         <View style={styles.inputContainer}>
           <TextInput
+            ref={inputRef}
             style={styles.textInput}
             placeholder={isLoading ? "AIが回答を生成中..." : "AIにトレーニングについて相談する..."}
             placeholderTextColor="#666666"
@@ -467,106 +446,12 @@ ${logsSummary}
         </View>
 
         {/* Space at the bottom */}
-        <View style={{ height: Platform.OS === 'ios' ? 80 : 70 }} />
+        {!isKeyboardVisible && (
+          <View style={{ height: Platform.OS === 'ios' ? 90 : 70 }} />
+        )}
       </KeyboardAvoidingView>
 
-      {/* 課金モーダル (PaywallModal) */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={paywallVisible}
-        onRequestClose={() => setPaywallVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <GlassCard style={styles.modalContent}>
-            <Text style={styles.paywallTitle}>👑 PREMIUM PLAN</Text>
-            <Text style={styles.paywallPrice}>月額 500 円 <Text style={styles.priceTax}>(税込)</Text></Text>
-            
-            <View style={styles.benefitContainer}>
-              <View style={styles.benefitRow}>
-                <Text style={styles.benefitCheck}>✓</Text>
-                <Text style={styles.benefitText}>AIチャットの上限が 1日100回 に拡大</Text>
-              </View>
-              <View style={styles.benefitRow}>
-                <Text style={styles.benefitCheck}>✓</Text>
-                <Text style={styles.benefitText}>アプリ内のスポンサー広告を完全非表示</Text>
-              </View>
-              <View style={styles.benefitRow}>
-                <Text style={styles.benefitCheck}>✓</Text>
-                <Text style={styles.benefitText}>最新機能の先行リリース権</Text>
-              </View>
-            </View>
 
-            {isPaying ? (
-              <View style={styles.payingContainer}>
-                <ActivityIndicator size="large" color="#ff6b00" />
-                <Text style={styles.payingText}>決済を処理中...</Text>
-              </View>
-            ) : (
-              <View style={{ width: '100%' }}>
-                {isPurchasesInitialized() ? (
-                  <View style={{ gap: 12, marginVertical: 15 }}>
-                    <Text style={styles.benefitText}>
-                      App Store または Google Play アカウントに登録されている決済方法で安全に登録手続きを行います。
-                    </Text>
-                    <TouchableOpacity style={styles.payConfirmBtn} onPress={handlePurchasePremium}>
-                      <Text style={styles.payConfirmText}>購入手続きに進む</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <>
-                    <Text style={styles.paymentSectionHeader}>クレジットカードで支払う (デモ環境)</Text>
-                    
-                    <TextInput
-                      style={styles.paymentInput}
-                      placeholder="カード番号 (16桁)"
-                      placeholderTextColor="#555"
-                      keyboardType="numeric"
-                      maxLength={16}
-                      value={cardNumber}
-                      onChangeText={setCardNumber}
-                    />
-                    
-                    <View style={{ flexDirection: 'row', gap: 10, marginVertical: 8 }}>
-                      <TextInput
-                        style={[styles.paymentInput, { flex: 1 }]}
-                        placeholder="有効期限 (MM/YY)"
-                        placeholderTextColor="#555"
-                        maxLength={5}
-                        value={cardExpiry}
-                        onChangeText={setCardExpiry}
-                      />
-                      <TextInput
-                        style={[styles.paymentInput, { flex: 1 }]}
-                        placeholder="CVV (3桁)"
-                        placeholderTextColor="#555"
-                        keyboardType="numeric"
-                        maxLength={3}
-                        value={cardCvv}
-                        onChangeText={setCardCvv}
-                      />
-                    </View>
-
-                    <TouchableOpacity style={styles.payConfirmBtn} onPress={handlePurchasePremium}>
-                      <Text style={styles.payConfirmText}>月額500円で登録する</Text>
-                    </TouchableOpacity>
-
-                    <Text style={styles.orText}>または</Text>
-
-                    <TouchableOpacity style={styles.applePayBtn} onPress={handlePurchasePremium}>
-                      <Text style={styles.applePayText}> Pay で支払う</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-
-                <TouchableOpacity style={styles.payCancelBtn} onPress={() => setPaywallVisible(false)}>
-                  <Text style={styles.payCancelText}>キャンセル</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </GlassCard>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

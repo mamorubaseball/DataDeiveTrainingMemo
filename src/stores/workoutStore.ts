@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
-import { loginUserToPurchases, logoutUserFromPurchases, checkPremiumStatus } from '@/services/purchaseService';
+import { initializePurchases, loginUserToPurchases, logoutUserFromPurchases, checkPremiumStatus } from '@/services/purchaseService';
 
 
 export interface SetRecord {
@@ -400,6 +400,7 @@ export const useWorkoutStore = create<WorkoutState>()(
       }));
 
       // Sync user to RevenueCat and check subscription status
+      await initializePurchases();
       await loginUserToPurchases(email);
       const isPremium = await checkPremiumStatus();
 
